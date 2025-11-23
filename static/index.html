@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Proctoring System - Online Examination</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .exam-timer {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 0;
+            min-height: 600px;
+        }
+        .video-panel {
+            background: #1a1a1a;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-container {
+            position: relative;
+            max-width: 100%;
+        }
+        video, canvas {
+            width: 100%;
+            max-width: 640px;
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            background: #000;
+        }
+        .alerts-panel {
+            background: #f8f9fa;
+            padding: 25px;
+            border-left: 3px solid #e9ecef;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+        .status-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        .alert {
+            background: white;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 8px;
+            border-left: 5px solid;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
+        }
+        .alert.critical { border-left-color: #e74c3c; background: #ffeaea; }
+        .alert.high { border-left-color: #e67e22; background: #fff5e6; }
+        .alert.medium { border-left-color: #f39c12; background: #fffbf0; }
+        .alert.normal { border-left-color: #27ae60; background: #eafaf1; }
+        .alert.warning { border-left-color: #f1c40f; background: #fef9e7; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .stat-card.has-alerts {
+            background: #fff5f5;
+            border: 2px solid #e74c3c;
+            animation: pulse 2s infinite;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.success {
+            background: #27ae60;
+        }
+        .btn.success:hover {
+            background: #219652;
+        }
+        .btn.danger {
+            background: #e74c3c;
+        }
+        .btn.danger:hover {
+            background: #c0392b;
+        }
+        
+        .connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .connected { background: #d5f4e6; color: #27ae60; }
+        .disconnected { background: #ffeaea; color: #e74c3c; }
+        
+        .alert-timestamp {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        /* Exam specific styles */
+        .exam-rules {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .exam-rules h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .exam-rules ul {
+            padding-left: 20px;
+        }
+        .exam-rules li {
+            margin-bottom: 8px;
+            color: #34495e;
+        }
+        .questions-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .question {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .question:last-child {
+            border-bottom: none;
+        }
+        .question-text {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        .option {
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+        .option.selected {
+            border-color: #27ae60;
+            background: #eafaf1;
+        }
+        .exam-ended {
+            background: #ffeaa7;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        .warning-counter {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Online Examination Portal</h1>
+            <p>AI-Proctored Test - Computer Science Fundamentals</p>
+            <div class="exam-timer" id="examTimer">Time: 30:00</div>
+        </div>
+        
+        <div class="content">
+            <div class="video-panel">
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="output"></canvas>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    🔄 Connecting to proctoring system...
+                </div>
+                <div>
+                    <button class="btn" onclick="startCamera()">🎥 Start Exam</button>
+                    <button class="btn success" onclick="submitExam()">📝 Submit Exam</button>
+                </div>
+
+                <!-- Exam Rules -->
+                <div class="exam-rules">
+                    <h4>📋 Examination Rules</h4>
+                    <ul>
+                        <li>✅ Keep your face visible to the camera at all times</li>
+                        <li>❌ No mobile phones or external devices allowed</li>
+                        <li>❌ No talking or communication with others</li>
+                        <li>❌ No looking away from screen for extended periods</li>
+                        <li>⚠️ <strong>7 warnings will result in automatic exam termination</strong></li>
+                        <li>⏰ Time limit: 30 minutes</li>
+                    </ul>
+                </div>
+
+                <!-- Sample Questions -->
+                <div class="questions-container">
+                    <h3>📝 Sample Questions</h3>
+                    
+                    <div class="question">
+                        <div class="question-text">1. What is the time complexity of binary search?</div>
+                        <div class="options">
+                            <div class="option" onclick="selectOption(this)">A. O(1)</div>
+                            <div class="option" onclick="selectOption(this)">B. O(log n)</div>
+                            <div class="option" onclick="selectOption(this)">C. O(n)</div>
+                            <div class="option" onclick="selectOption(this)">D. O(n²)</div>
+                        </div>
+                    </div>
+
+                    <div class="question">
+                        <div class="question-text">2. Which data structure uses LIFO principle?</div>
+                        <div class="options">
+                            <div class="option" onclick="selectOption(this)">A. Queue</div>
+                            <div class="option" onclick="selectOption(this)">B. Stack</div>
+                            <div class="option" onclick="selectOption(this)">C. Array</div>
+                            <div class="option" onclick="selectOption(this)">D. Linked List</div>
+                        </div>
+                    </div>
+
+                    <div class="question">
+                        <div class="question-text">3. What does SQL stand for?</div>
+                        <div class="options">
+                            <div class="option" onclick="selectOption(this)">A. Structured Query Language</div>
+                            <div class="option" onclick="selectOption(this)">B. Simple Question Language</div>
+                            <div class="option" onclick="selectOption(this)">C. System Query Logic</div>
+                            <div class="option" onclick="selectOption(this)">D. Standard Question Layout</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exam Ended Message -->
+                <div class="exam-ended" id="examEnded">
+                    <h2>🚫 EXAM TERMINATED</h2>
+                    <p>Your exam has been terminated due to multiple violations of exam rules.</p>
+                    <p><strong>Total Warnings: <span id="finalWarningCount">0</span>/7</strong></p>
+                    <button class="btn danger" onclick="location.reload()">🔄 Restart Exam</button>
+                </div>
+            </div>
+            
+            <div class="alerts-panel">
+                <div class="status-card">
+                    <h3>📊 Proctoring Status</h3>
+                    <div class="warning-counter">
+                        ⚠️ Warnings: <span id="warningCount">0</span>/7
+                    </div>
+                    <div id="systemStatus">Initializing proctoring system...</div>
+                    
+                    <div class="stats">
+                        <div class="stat-card" id="faceStatCard">
+                            <div class="stat-value" id="faceCount">0</div>
+                            <div class="stat-label">Faces Detected</div>
+                        </div>
+                        <div class="stat-card" id="objectStatCard">
+                            <div class="stat-value" id="objectCount">0</div>
+                            <div class="stat-label">Suspicious Objects ⚠️</div>
+                        </div>
+                        <div class="stat-card" id="alertStatCard">
+                            <div class="stat-value" id="alertCount">0</div>
+                            <div class="stat-label">Total Alerts 🔴</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="noFaceTime">0s</div>
+                            <div class="stat-label">No Face Time</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>🚨 Proctoring Alerts</h3>
+                <div id="alertsContainer">
+                    <div class="alert normal">
+                        <strong>✅ System Ready</strong><br>
+                        <small>Follow exam rules to avoid warnings</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <script>
+    // Exam state variables
+    let examStarted = false;
+    let examEnded = false;
+    let warningCount = 0;
+    let examTime = 30 * 60; // 30 minutes in seconds
+    let timerInterval;
+
+    // Existing variables
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('output');
+    const ctx = canvas.getContext('2d');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const alertsContainer = document.getElementById('alertsContainer');
+    const systemStatus = document.getElementById('systemStatus');
+    const faceCount = document.getElementById('faceCount');
+    const objectCount = document.getElementById('objectCount');
+    const alertCount = document.getElementById('alertCount');
+    const noFaceTime = document.getElementById('noFaceTime');
+    const warningCountElement = document.getElementById('warningCount');
+    const examEndedElement = document.getElementById('examEnded');
+    const finalWarningCountElement = document.getElementById('finalWarningCount');
+    const examTimerElement = document.getElementById('examTimer');
+    
+    // Get stat cards for warning highlights
+    const faceStatCard = document.getElementById('faceStatCard');
+    const objectStatCard = document.getElementById('objectStatCard');
+    const alertStatCard = document.getElementById('alertStatCard');
+    
+    const sessionId = 'student-' + Math.random().toString(36).substr(2, 9);
+    let ws = null;
+    let totalAlerts = 0;
+    let isProcessing = false;
+    
+    // FIX: Persistent alert system
+    let activeAlerts = new Map(); // Stores all active alerts with their data
+    let alertHistory = []; // Stores all alerts for logging
+    let objectDetectionHistory = new Map(); // Track detected objects
+    
+    // Initialize connection
+    connectWebSocket();
+
+    // Exam control functions
+    function startExam() {
+        if (!examStarted) {
+            examStarted = true;
+            startCamera();
+            startTimer();
+            systemStatus.textContent = 'Exam in progress - AI Proctoring Active';
+        }
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            if (examTime > 0 && !examEnded) {
+                examTime--;
+                const minutes = Math.floor(examTime / 60);
+                const seconds = examTime % 60;
+                examTimerElement.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (examTime === 0) {
+                    endExam('Time is up! Exam submitted automatically.');
+                }
+            }
+        }, 1000);
+    }
+
+    function addWarning() {
+        if (!examEnded) {
+            warningCount++;
+            warningCountElement.textContent = warningCount;
+            
+            if (warningCount >= 7) {
+                endExam('Exam terminated due to multiple rule violations.');
+            }
+        }
+    }
+
+    function endExam(reason) {
+        examEnded = true;
+        clearInterval(timerInterval);
+        
+        // Stop camera
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        
+        // Show exam ended message
+        examEndedElement.style.display = 'block';
+        finalWarningCountElement.textContent = warningCount;
+        
+        // Add final alert
+        addPersistentAlert('critical', `🚫 EXAM ENDED: ${reason}`, 'exam_ended');
+        
+        // Disable WebSocket
+        if (ws) {
+            ws.close();
+        }
+    }
+
+    function submitExam() {
+        if (!examEnded) {
+            endExam('Exam submitted successfully.');
+        }
+    }
+
+    function selectOption(element) {
+        if (!examEnded) {
+            // Remove selected class from all options in this question
+            const options = element.parentElement.querySelectorAll('.option');
+            options.forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selected class to clicked option
+            element.classList.add('selected');
+        }
+    }
+
+    // Modified startCamera to start exam
+    function startCamera() {
+        if (examEnded) return;
+        
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                frameRate: { ideal: 30 }
+            } 
+        })
+        .then(stream => {
+            video.srcObject = stream;
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                startProcessing();
+                startExam(); // Start exam when camera is ready
+            });
+        })
+        .catch(err => {
+            addPersistentAlert('critical', 'Camera Error: Please allow camera permissions to start the exam.', 'camera_error');
+            console.error('Camera error:', err);
+        });
+    }
+    
+    function connectWebSocket() {
+        connectionStatus.textContent = '🔄 Connecting to proctoring system...';
+        connectionStatus.className = 'connection-status disconnected';
+        
+        // Try different WebSocket URLs
+        const urls = [
+            `ws://127.0.0.1:8000/ws/${sessionId}`,
+            `ws://localhost:8000/ws/${sessionId}`,
+            `ws://${window.location.hostname}:8000/ws/${sessionId}`
+        ];
+        
+        let currentUrlIndex = 0;
+        
+        function tryConnect() {
+            if (currentUrlIndex >= urls.length) {
+                connectionStatus.textContent = '❌ Failed to connect to proctoring system';
+                return;
+            }
+            
+            const url = urls[currentUrlIndex];
+            console.log(`Trying to connect to: ${url}`);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = function() {
+                console.log('✅ WebSocket connected to:', url);
+                connectionStatus.textContent = '✅ Connected to AI Proctoring System';
+                connectionStatus.className = 'connection-status connected';
+                systemStatus.textContent = 'Ready to start exam - Click "Start Exam"';
+            };
+            
+            ws.onerror = function(error) {
+                console.log('❌ WebSocket error for:', url, error);
+                currentUrlIndex++;
+                setTimeout(tryConnect, 1000);
+            };
+            
+            ws.onclose = function() {
+                connectionStatus.textContent = '❌ Disconnected from proctoring system';
+                connectionStatus.className = 'connection-status disconnected';
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            };
+        }
+        
+        tryConnect();
+    }
+    
+    function handleServerMessage(data) {
+        if (data.type === 'analysis_result') {
+            updateUI(data);
+        } else if (data.type === 'error') {
+            addPersistentAlert('critical', `System Error: ${data.message}`, 'system_error');
+        }
+    }
+    
+    function startProcessing() {
+        setInterval(() => {
+            if (!isProcessing && ws && ws.readyState === WebSocket.OPEN && examStarted && !examEnded) {
+                isProcessing = true;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                ws.send(JSON.stringify({ type: 'frame', frame: frameData }));
+                isProcessing = false;
+            }
+        }, 1000);
+    }
+    
+    // Modified updateUI to add warnings
+    function updateUI(data) {
+        if (examEnded) return;
+
+        const faces = data.detections?.face_count || 0;
+        const objects = data.detections?.objects || [];
+        const noFaceDuration = data.detections?.no_face_duration || 0;
+        
+        // Update basic counts
+        faceCount.textContent = faces;
+        objectCount.textContent = objects.length;
+        noFaceTime.textContent = noFaceDuration + 's';
+        
+        // FIX: Handle multiple faces alert (PERSISTENT)
+        if (faces > 1) {
+            const alertId = 'multiple_faces';
+            if (!activeAlerts.has(alertId)) {
+                addPersistentAlert('critical', 
+                    `🚨 MULTIPLE PEOPLE DETECTED: ${faces} faces in frame - WARNING ISSUED`, 
+                    alertId
+                );
+                faceStatCard.classList.add('has-alerts');
+                addWarning(); // Add warning for multiple people
+            }
+        } else {
+            const alertId = 'multiple_faces';
+            if (activeAlerts.has(alertId)) {
+                removeAlert(alertId);
+                faceStatCard.classList.remove('has-alerts');
+            }
+        }
+        
+        // FIXED: Object detection - ONCE DETECTED, STAYS DETECTED until cleared
+        objects.forEach((obj, index) => {
+            const objName = obj.class || 'Unknown Object';
+            const confidence = obj.confidence ? Math.round(obj.confidence * 100) : 'N/A';
+            const alertId = `object_${objName.toLowerCase().replace(/\s+/g, '_')}`;
+            
+            // If this object is detected, create persistent alert (if not already exists)
+            if (!activeAlerts.has(alertId)) {
+                addPersistentAlert('high', 
+                    `⚠️ SUSPICIOUS OBJECT DETECTED: ${objName} - WARNING ISSUED`, 
+                    alertId
+                );
+                addWarning(); // Add warning for suspicious object
+                
+                // Add to object detection history
+                objectDetectionHistory.set(alertId, {
+                    object: objName,
+                    confidence: confidence,
+                    firstDetected: new Date(),
+                    lastDetected: new Date(),
+                    alertActive: true
+                });
+            } else {
+                // Update last detected time for existing object
+                const objData = objectDetectionHistory.get(alertId);
+                if (objData) {
+                    objData.lastDetected = new Date();
+                }
+            }
+        });
+        
+        // FIXED: Keep object count showing the MAXIMUM detected, not current
+        let maxObjectsDetected = 0;
+        for (const [alertId, alertData] of activeAlerts.entries()) {
+            if (alertId.startsWith('object_')) {
+                maxObjectsDetected++;
+            }
+        }
+        
+        // Update object count to show maximum detected, not current
+        if (maxObjectsDetected > 0) {
+            objectCount.textContent = maxObjectsDetected;
+            objectStatCard.classList.add('has-alerts');
+        } else {
+            objectCount.textContent = objects.length; // Show current if no persistent alerts
+            objectStatCard.classList.remove('has-alerts');
+        }
+        
+        // FIX: Handle no face detection (PERSISTENT)
+        if (faces === 0 && noFaceDuration > 5) {
+            const alertId = 'no_face';
+            if (!activeAlerts.has(alertId)) {
+                addPersistentAlert('high', 
+                    `👤 NO FACE DETECTED: ${noFaceDuration} seconds - WARNING ISSUED`, 
+                    alertId
+                );
+                addWarning(); // Add warning for no face
+            } else {
+                // Update the existing alert with current duration
+                updateAlertMessage(alertId, `👤 NO FACE DETECTED: ${noFaceDuration} seconds - WARNING ISSUED`);
+            }
+        } else {
+            const alertId = 'no_face';
+            if (activeAlerts.has(alertId)) {
+                removeAlert(alertId);
+            }
+        }
+        
+        // FIXED: Total alerts = all active alerts (including persistent object alerts)
+        const currentAlertCount = activeAlerts.size;
+        alertCount.textContent = currentAlertCount;
+        
+        if (currentAlertCount > 0) {
+            alertStatCard.classList.add('has-alerts');
+        } else {
+            alertStatCard.classList.remove('has-alerts');
+        }
+        
+        // Show "All Clear" only when truly no alerts
+        if (activeAlerts.size === 0) {
+            showAllClear();
+        }
+        
+        // Update processed frame
+        if (data.processed_frame) {
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = data.processed_frame;
+        }
+    }
+    
+    // NEW: Persistent alert functions
+    function addPersistentAlert(severity, message, alertId) {
+        const timestamp = Date.now();
+        
+        const alertData = {
+            id: alertId,
+            severity: severity,
+            message: message,
+            timestamp: timestamp,
+            element: null
+        };
+        
+        // Create alert element
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${severity}`;
+        alertDiv.innerHTML = `
+            <strong>${message}</strong><br>
+            <small>${new Date().toLocaleTimeString()}</small>
+            <button class="clear-btn" onclick="removeAlert('${alertId}')" style="float: right; background: #e74c3c; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em;">✕</button>
+        `;
+        
+        // Remove any "Normal Activity" message
+        const normalAlerts = alertsContainer.querySelectorAll('.alert.normal');
+        normalAlerts.forEach(alert => alert.remove());
+        
+        // Add to container
+        alertsContainer.insertBefore(alertDiv, alertsContainer.firstChild);
+        
+        alertData.element = alertDiv;
+        activeAlerts.set(alertId, alertData);
+        
+        // Add to history for logging
+        alertHistory.push({
+            id: alertId,
+            severity: severity,
+            message: message,
+            timestamp: new Date().toISOString(),
+            type: 'alert_triggered'
+        });
+        
+        // Log to console (you can send this to server instead)
+        console.log('🔴 ALERT TRIGGERED:', { id: alertId, message, timestamp: new Date().toLocaleString() });
+    }
+    
+    function updateAlertMessage(alertId, newMessage) {
+        if (activeAlerts.has(alertId)) {
+            const alertData = activeAlerts.get(alertId);
+            alertData.message = newMessage;
+            if (alertData.element) {
+                alertData.element.querySelector('strong').textContent = newMessage;
+            }
+        }
+    }
+    
+    function removeAlert(alertId) {
+        if (activeAlerts.has(alertId)) {
+            const alertData = activeAlerts.get(alertId);
+            if (alertData.element && alertData.element.parentNode) {
+                alertData.element.remove();
+            }
+            activeAlerts.delete(alertId);
+            
+            // Add to history
+            alertHistory.push({
+                id: alertId,
+                severity: alertData.severity,
+                message: alertData.message,
+                timestamp: new Date().toISOString(),
+                type: 'alert_cleared'
+            });
+            
+            console.log('🟢 ALERT CLEARED:', { id: alertId, timestamp: new Date().toLocaleString() });
+        }
+    }
+    
+    function showAllClear() {
+        // Clear all existing alerts first
+        const existingAlerts = alertsContainer.querySelectorAll('.alert:not(.normal)');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        const allClearDiv = document.createElement('div');
+        allClearDiv.className = 'alert normal';
+        allClearDiv.innerHTML = `
+            <strong>✅ Normal Activity</strong><br>
+            <small>No suspicious behavior detected</small>
+        `;
+        alertsContainer.appendChild(allClearDiv);
+    }
+
+    // Auto-reconnect if connection is lost
+    setInterval(() => {
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+            if (!examEnded) {
+                connectWebSocket();
+            }
+        }
+    }, 5000);
+</script>
+</body>
+</html>
