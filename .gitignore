@@ -1,0 +1,7 @@
+verv/
+__pycache__/
+*.pyc
+.env
+dataset/
+*.pt
+evaluation_results/
